@@ -71,7 +71,6 @@ int tokenize_input(const char input[], const size_t length, char **tokenized_inp
         }
     }
 
-    // tokenized_input = (char **)malloc(num_tokens * sizeof(char *));
     for (int index = 0; index < num_tokens; ++index)
     {
         *(tokenized_input + index) = result_buffer[index];
@@ -80,67 +79,35 @@ int tokenize_input(const char input[], const size_t length, char **tokenized_inp
     return 0;
 }
 
-void handle_input(const char input[], const size_t length)
+string getHash(string filePath)
 {
-    if (length == 0)
-        return;
-
-    char *tokenized_input[128];
-    size_t num_tokens = 0;
-    int res = tokenize_input(input, length, tokenized_input, num_tokens);
-
-    if (res == 1 || num_tokens < 1)
-    {
-        cout << "! Invalid input provided\n";
-        return;
-    }
-
-    char *command = tokenized_input[0];
-    if (strcmp(command, "addfile") == 0)
-    {
-        for (int index = 1; index < num_tokens; ++index)
-            cout << tokenized_input[index] << "\n";
-    }
-    else if (strcmp(command, "delfile") == 0)
-    {
-        for (int index = 1; index < num_tokens; ++index)
-            cout << tokenized_input[index] << "\n";
-    }
-    else if (strcmp(command, "addtags") == 0)
-    {
-        for (int index = 1; index < num_tokens; ++index)
-            cout << tokenized_input[index] << "\n";
-    }
-    else if (strcmp(command, "updatetags") == 0)
-    {
-        for (int index = 1; index < num_tokens; ++index)
-            cout << tokenized_input[index] << "\n";
-    }
-    else
-    {
-        cout << "! Command \"" << command << "\" not a valid command\n";
-    }
+    return filePath;
 }
 
-void addFile(string fileName, string filePath, vector<string> tags)
+void addFile(string filePath, vector<string>tags)
 {
+    string fileHash = getHash(filePath);
+
+    // TODO
+    string fileName = "name";
+
     fstream fout;
     fout.open("db.csv", ios::out | ios::app);
 
-    fout << fileName << "," << filePath << ",";
-    for (int i = 0; i < tags.size(); i++)
-    {
+    fout << fileHash << "," << fileName << "," << filePath << ",";
+    for (int i = 0; i < tags.size(); i++) {
         fout << tags[i];
         if (i != tags.size() - 1)
             fout << ",";
     }
     fout << "\n";
+    fout.close();
 }
 
 vector<string> readTags(string filePath)
 {
+    string fileHash = getHash(filePath);
     fstream fin;
-
     fin.open("db.csv", ios::in);
 
     bool flag = 0;
@@ -159,18 +126,20 @@ vector<string> readTags(string filePath)
         }
 
         path = row[1];
-        if (path == filePath)
-        {
+        if (path == fileHash) {
             flag = 1;
             return row;
         }
     }
     if (flag == 0)
         cout << "Record not found\n";
+
+    return {};
 }
 
-void updateTags(string fileName, string filePath, vector<string> tags)
+void addTags(string filePath, vector<string>tags)
 {
+    string fileHash = getHash(filePath);
 
     fstream fin, fout;
 
@@ -194,11 +163,11 @@ void updateTags(string fileName, string filePath, vector<string> tags)
             row.push_back(word);
         }
 
-        path = row[1];
+        path = row[0];
         int row_size = row.size();
 
-        if (path == filePath)
-        {
+
+        if (path == fileHash) {
             flag = 1;
             for (string tag : tags)
                 row.push_back(tag);
@@ -234,7 +203,67 @@ void updateTags(string fileName, string filePath, vector<string> tags)
     fout.close();
 
     remove("db.csv");
+    rename("dbnew.csv", "db.csv");
+}
 
+void deleteTag(string filePath, string tag)
+{
+    string fileHash = getHash(filePath);
+
+    fstream fin, fout;
+
+    fin.open("db.csv", ios::in);
+    fout.open("dbnew.csv", ios::out);
+
+
+    string line, word, hash;
+    vector<string> row;
+    bool flag = 0;
+
+    while (!fin.eof()) {
+
+        row.clear();
+
+        getline(fin, line);
+        stringstream s(line);
+
+        while (getline(s, word, ',')) {
+            row.push_back(word);
+        }
+
+        hash = row[0];
+        int row_size = row.size();
+
+        if (hash == fileHash) {
+            flag = 1;
+
+            if (!fin.eof()) {
+                for (int i = 0; i < row_size; i++) {
+                    if (i <= 2 || row[i] != tag)
+                        fout << row[i] << ',';
+                }
+                fout << row[row_size] << "\n";
+            }
+        }
+        else {
+            if (!fin.eof()) {
+                for (int i = 0; i < row_size - 1; i++) {
+                    fout << row[i] << ',';
+                }
+
+                fout << row[row_size - 1] << "\n";
+            }
+        }
+        if (fin.eof())
+            break;
+    }
+    if (flag == 0)
+        cout << "File not added to application\n";
+
+    fin.close();
+    fout.close();
+
+    remove("db.csv");
     rename("dbnew.csv", "db.csv");
 }
 
@@ -261,6 +290,60 @@ void setup()
     }
 
     fin.close();
+}
+
+void handle_input(const char input[], const size_t length)
+{
+    if (length == 0)
+        return;
+
+    char *tokenized_input[128];
+    size_t num_tokens = 0;
+    int res = tokenize_input(input, length, tokenized_input, num_tokens);
+
+    if (res == 1 || num_tokens < 1)
+    {
+        std::cout << "! Invalid input provided\n";
+        return;
+    }
+
+    char *command = tokenized_input[0];
+    string filePath = tokenized_input[1];
+    if (std::strcmp(command, "addfile") == 0)
+    {
+        vector<string> tags;
+        for (int i = 2; i < num_tokens; i++) {
+            tags.push_back(tokenized_input[i]);
+        }
+        addFile(filePath, tags);
+    }
+    else if (std::strcmp(command, "delfile") == 0)
+    {
+        for (int index = 1; index < num_tokens; ++index)
+            std::cout << tokenized_input[index] << "\n";
+    }
+    else if (std::strcmp(command, "addtags") == 0)
+    {
+        vector<string> tags;
+        for (int i = 2; i < num_tokens; i++) {
+            tags.push_back(tokenized_input[i]);
+        }
+        addTags(filePath, tags);
+    }
+    else if (std::strcmp(command, "readtags") == 0)
+    {
+        vector<string> tags = readTags(filePath);
+        for (string tag : tags)
+            cout << tag << " ";
+    }
+    else if (std::strcmp(command, "deletetag") == 0)
+    {
+        deleteTag(filePath, tokenized_input[2]);
+    }
+    else
+    {
+        std::cout << "! Command \"" << command << "\" not a valid command\n";
+    }
 }
 
 int main()
