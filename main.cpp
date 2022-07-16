@@ -1,5 +1,4 @@
-#include <iostream>
-#include <cstring>
+#include <bits/stdc++.h>
 
 char *create_token(const char *input, int begin, int end)
 {
@@ -110,6 +109,111 @@ void handle_input(const char input[], const size_t length)
     {
         std::cout << "! Command \"" << command << "\" not a valid command\n";
     }
+}
+
+void addFile(string fileName, string filePath, vector<string>tags)
+{
+    fstream fout;
+    fout.open("db.csv", ios::out | ios::app);
+
+    fout << fileName << "," << filePath << ",";
+    for (int i = 0; i < tags.size(); i++) {
+        fout << tags[i];
+        if (i != tags.size() - 1) fout << ",";
+    }
+    fout << "\n";
+}
+
+
+vector<string> readTags(string filePath)
+{
+    fstream fin;
+
+    fin.open("db.csv", ios::in);
+
+    bool flag = 0;
+    vector<string> row;
+    string line, word, temp, path;
+
+    while (!fin.eof()) {
+        row.clear();
+        getline(fin, line);
+        stringstream s(line);
+
+        while (getline(s, word, ',')) {
+            row.push_back(word);
+        }
+
+        path = row[1];
+        if (path == filePath) {
+            flag = 1;
+            return row;
+        }
+    }
+    if (flag == 0)
+        cout << "Record not found\n";
+}
+
+
+void updateTags(string fileName, string filePath, vector<string>tags) {
+
+    fstream fin, fout;
+
+    fin.open("db.csv", ios::in);
+    fout.open("dbnew.csv", ios::out);
+
+
+    string line, word, path;
+    vector<string> row;
+    bool flag = 0;
+
+    while (!fin.eof()) {
+
+        row.clear();
+
+        getline(fin, line);
+        stringstream s(line);
+
+        while (getline(s, word, ',')) {
+            row.push_back(word);
+        }
+
+        path = row[1];
+        int row_size = row.size();
+
+        if (path == filePath) {
+            flag = 1;
+            for (string tag : tags)
+                row.push_back(tag);
+
+            if (!fin.eof()) {
+                for (int i = 0; i < row_size; i++) {
+                    fout << row[i] << ',';
+                }
+                fout << row[row_size] << "\n";
+            }
+        }
+        else {
+            if (!fin.eof()) {
+                for (int i = 0; i < row_size - 1; i++) {
+                    fout << row[i] << ',';
+                }
+
+                fout << row[row_size - 1] << "\n";
+            }
+        }
+        if (fin.eof())
+            break;
+    }
+    if (flag == 0)
+        cout << "File not added to application\n";
+
+    fin.close();
+    fout.close();
+
+    remove("db.csv");
+
+    rename("dbnew.csv", "db.csv");
 }
 
 int main()
