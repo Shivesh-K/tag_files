@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <Windows.h>
 using namespace std;
 
 struct FileInfo
@@ -81,10 +82,37 @@ int tokenize_input(const char input[], const size_t length, char **tokenized_inp
 
 string getHash(string filePath)
 {
-    return filePath;
+    HANDLE fileHandle = CreateFileA(filePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+    LPFILETIME creation_time;
+    bool file_found = GetFileTime(fileHandle, creation_time, NULL, NULL);
+
+    if (!file_found)
+    {
+        cout << "! File not found\n";
+        return "";
+    }
+
+    size_t h1 = hash<DWORD>{}(creation_time->dwLowDateTime);
+    size_t h2 = hash<DWORD>{}(creation_time->dwHighDateTime);
+
+    size_t final_hash = (h1 ^ (h2 << 1));
+    string res = "";
+    for (int i = 0; i < 16; ++i)
+    {
+        int temp = (final_hash & 15);
+        char ch;
+        if (temp < 10)
+            ch = '0' + temp;
+        else
+            ch = 'a' + temp - 10;
+        res += ch;
+        final_hash >>= 4;
+    }
+
+    return res;
 }
 
-void addFile(string filePath, vector<string>tags)
+void addFile(string filePath, vector<string> tags)
 {
     string fileHash = getHash(filePath);
 
@@ -95,7 +123,8 @@ void addFile(string filePath, vector<string>tags)
     fout.open("db.csv", ios::out | ios::app);
 
     fout << fileHash << "," << fileName << "," << filePath << ",";
-    for (int i = 0; i < tags.size(); i++) {
+    for (int i = 0; i < tags.size(); i++)
+    {
         fout << tags[i];
         if (i != tags.size() - 1)
             fout << ",";
@@ -126,7 +155,8 @@ vector<string> readTags(string filePath)
         }
 
         path = row[1];
-        if (path == fileHash) {
+        if (path == fileHash)
+        {
             flag = 1;
             return row;
         }
@@ -137,7 +167,7 @@ vector<string> readTags(string filePath)
     return {};
 }
 
-void addTags(string filePath, vector<string>tags)
+void addTags(string filePath, vector<string> tags)
 {
     string fileHash = getHash(filePath);
 
@@ -166,8 +196,8 @@ void addTags(string filePath, vector<string>tags)
         path = row[0];
         int row_size = row.size();
 
-
-        if (path == fileHash) {
+        if (path == fileHash)
+        {
             flag = 1;
             for (string tag : tags)
                 row.push_back(tag);
@@ -215,39 +245,46 @@ void deleteTag(string filePath, string tag)
     fin.open("db.csv", ios::in);
     fout.open("dbnew.csv", ios::out);
 
-
     string line, word, hash;
     vector<string> row;
     bool flag = 0;
 
-    while (!fin.eof()) {
+    while (!fin.eof())
+    {
 
         row.clear();
 
         getline(fin, line);
         stringstream s(line);
 
-        while (getline(s, word, ',')) {
+        while (getline(s, word, ','))
+        {
             row.push_back(word);
         }
 
         hash = row[0];
         int row_size = row.size();
 
-        if (hash == fileHash) {
+        if (hash == fileHash)
+        {
             flag = 1;
 
-            if (!fin.eof()) {
-                for (int i = 0; i < row_size; i++) {
+            if (!fin.eof())
+            {
+                for (int i = 0; i < row_size; i++)
+                {
                     if (i <= 2 || row[i] != tag)
                         fout << row[i] << ',';
                 }
                 fout << row[row_size] << "\n";
             }
         }
-        else {
-            if (!fin.eof()) {
-                for (int i = 0; i < row_size - 1; i++) {
+        else
+        {
+            if (!fin.eof())
+            {
+                for (int i = 0; i < row_size - 1; i++)
+                {
                     fout << row[i] << ',';
                 }
 
@@ -308,11 +345,13 @@ void handle_input(const char input[], const size_t length)
     }
 
     char *command = tokenized_input[0];
-    string filePath = tokenized_input[1];
+    string filePath(tokenized_input[1]);
+
     if (std::strcmp(command, "addfile") == 0)
     {
         vector<string> tags;
-        for (int i = 2; i < num_tokens; i++) {
+        for (int i = 2; i < num_tokens; i++)
+        {
             tags.push_back(tokenized_input[i]);
         }
         addFile(filePath, tags);
@@ -325,7 +364,8 @@ void handle_input(const char input[], const size_t length)
     else if (std::strcmp(command, "addtags") == 0)
     {
         vector<string> tags;
-        for (int i = 2; i < num_tokens; i++) {
+        for (int i = 2; i < num_tokens; i++)
+        {
             tags.push_back(tokenized_input[i]);
         }
         addTags(filePath, tags);
