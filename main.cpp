@@ -11,8 +11,51 @@ struct FileInfo
     string hash;
 };
 
+struct TrieNode
+{
+    char ele;
+    bool isEndofWord;
+    TrieNode *child[26];
+};
+
+TrieNode *getNewNode(char ch)
+{
+    TrieNode *node = new TrieNode;
+    node->ele = ch;
+    node->isEndofWord = false;
+    for (int i = 0; i < 26; ++i)
+        (node->child)[i] = nullptr;
+
+    return node;
+}
+
+TrieNode *root = getNewNode('/');
 map<string, set<string>> tagToFileHashes;
 map<string, FileInfo> hashToFileInfo;
+
+void insertInTrie(string &tag)
+{
+    int len = tag.length();
+
+    TrieNode *current = root;
+
+    for (int i = 0; i < len; i++)
+    {
+
+        int val = tag[i] - 'a';
+        if ((current->child)[val] != nullptr)
+            current = (current->child)[val];
+        else
+        {
+            TrieNode *new_node = getNewNode(tag[i]);
+            (current->child)[val] = new_node;
+            current = new_node;
+        }
+
+        if (i == len - 1)
+            current->isEndofWord = true;
+    }
+}
 
 char *create_token(const char *input, int begin, int end)
 {
@@ -91,7 +134,7 @@ string getHash(string fileName)
 
     if (!file_found)
     {
-        cout << "! File not found (" << fileName << ")\n";
+        cout << "! File not found\n";
         return "";
     }
 
@@ -301,10 +344,28 @@ void addTags(string filePath, vector<string> &tags)
     }
 }
 
-void deleteTag(string filePath, string tag)
+void getMoreTags(string tag, vector<string> &moreTags, TrieNode *current)
+{
+    if (current == nullptr)
+    {
+        return;
+    }
+
+    if (current->isEndofWord)
+        moreTags.push_back(tag);
+
+    for (int i = 0; i < 26; i++)
+    {
+        char ch = ('a' + i);
+        getMoreTags(tag + ch, moreTags, (current->child)[i]);
+    }
+
+    return;
+}
+
+void deleteTag(string filePath, vector<string> tags)
 {
     string fileHash = getHash(filePath);
-
     fstream fin, fout;
 
     fin.open("db.csv", ios::in);
@@ -313,12 +374,11 @@ void deleteTag(string filePath, string tag)
     string line, word, hash;
     vector<string> row;
     bool flag = 0;
+    sort(tags.begin(), tags.end());
 
     while (!fin.eof())
     {
-
         row.clear();
-
         getline(fin, line);
         stringstream s(line);
 
@@ -336,12 +396,14 @@ void deleteTag(string filePath, string tag)
 
             if (!fin.eof())
             {
-                for (int i = 0; i < row_size; i++)
+                for (int i = 0; i < row_size - 1; i++)
                 {
-                    if (i <= 2 || row[i] != tag)
+                    auto it = find(tags.begin(), tags.end(), row[i]);
+                    if (i <= 2 || it == tags.end())
                         fout << row[i] << ',';
                 }
-                fout << row[row_size] << "\n";
+                auto it = find(tags.begin(), tags.end(), row[row_size]);
+                fout << row[row_size - 1] << "\n";
             }
         }
         else
@@ -352,7 +414,6 @@ void deleteTag(string filePath, string tag)
                 {
                     fout << row[i] << ',';
                 }
-
                 fout << row[row_size - 1] << "\n";
             }
         }
@@ -372,6 +433,26 @@ void deleteTag(string filePath, string tag)
 vector<FileInfo> findFiles(vector<string> tags)
 {
     unordered_map<string, int> m;
+    int len = tags.size();
+
+    vector<string> moreTags;
+
+    for (int i = 0; i < len; i++)
+    {
+        TrieNode *cur = root;
+        for (int j = 0; j < tags[i].length() && cur; j++)
+        {
+            cur = (cur->child)[tags[i][j] - 'a'];
+        }
+
+        getMoreTags(tags[i], moreTags, cur);
+    }
+
+    for (auto i : moreTags)
+    {
+        tags.push_back(i);
+    }
+
     for (string tag : tags)
     {
         for (string fileHash : tagToFileHashes[tag])
@@ -382,7 +463,7 @@ vector<FileInfo> findFiles(vector<string> tags)
     vector<string> fileHashes;
     for (auto it : m)
     {
-        if (it.second == tags.size())
+        if (it.second >= len)
         {
             fileHashes.push_back(it.first);
         }
@@ -395,6 +476,115 @@ vector<FileInfo> findFiles(vector<string> tags)
         result.push_back(hashToFileInfo[fileHash]);
     }
     return result;
+}
+
+void removeFiles(vector<string> paths)
+{
+    set<string> fileHashes;
+    for (string path : paths)
+        fileHashes.insert(getHash(path));
+
+    fstream fin, fout;
+
+    fin.open("db.csv", ios::in);
+    fout.open("dbnew.csv", ios::out);
+
+    string line, word, hash;
+    vector<string> row;
+    bool flag = 0;
+
+    while (!fin.eof())
+    {
+        row.clear();
+        getline(fin, line);
+        stringstream s(line);
+
+        while (getline(s, word, ','))
+        {
+            row.push_back(word);
+        }
+
+        hash = row[0];
+        int row_size = row.size();
+
+        auto it = fileHashes.find(hash);
+        if (it == fileHashes.end())
+        {
+            if (!fin.eof())
+            {
+                for (int i = 0; i < row_size - 1; i++)
+                {
+                    fout << row[i] << ',';
+                }
+
+                fout << row[row_size - 1] << "\n";
+            }
+        }
+        if (fin.eof())
+            break;
+    }
+
+    fin.close();
+    fout.close();
+
+    remove("db.csv");
+    rename("dbnew.csv", "db.csv");
+}
+
+void move(string path1, string path2)
+{
+    wstring fileNameCon1 = wstring(path1.begin(), path1.end());
+    wstring fileNameCon2 = wstring(path2.begin(), path2.end());
+    LPCWSTR file1 = fileNameCon1.c_str();
+    LPCWSTR file2 = fileNameCon2.c_str();
+
+    BOOL bFile;
+    bFile = MoveFile(file1, file2);
+
+    if (bFile == FALSE)
+    {
+        cout << "MoveFile failed - " << GetLastError() << endl;
+    }
+    else
+    {
+        cout << "MoveFile success!" << endl;
+        vector<string> row = readTags(path1), tags;
+        for (int i = 3; i < row.size(); i++)
+        {
+            tags.push_back(row[i]);
+        }
+
+        vector<string> paths = {path1};
+        removeFiles(paths);
+        addTags(path2, tags);
+    }
+}
+
+void copy(string path1, string path2)
+{
+    wstring fileNameCon1 = wstring(path1.begin(), path1.end());
+    wstring fileNameCon2 = wstring(path2.begin(), path2.end());
+    LPCWSTR file1 = fileNameCon1.c_str();
+    LPCWSTR file2 = fileNameCon2.c_str();
+
+    BOOL bFile;
+    bFile = CopyFile(file1, file2, TRUE);
+
+    if (bFile == FALSE)
+    {
+        cout << "CopyFile failed - " << GetLastError() << endl;
+    }
+    else
+    {
+        vector<string> row = readTags(path1), tags;
+        for (int i = 3; i < row.size(); i++)
+        {
+            tags.push_back(row[i]);
+        }
+        addTags(path2, tags);
+
+        cout << "CopyFile success!" << endl;
+    }
 }
 
 vector<string> getFileMetadataTags(const string &filePath)
@@ -451,14 +641,19 @@ void setup()
             for (int i = 1; i < tokens.size(); ++i)
                 tagToFileHashes[tokens[i]].insert(tokens[0]);
 
+            for (int i = 3; i < tokens.size(); ++i)
+            {
+                insertInTrie(tokens[i]);
+            }
+
             FileInfo file;
             file.name = tokens[1];
             file.filePath = tokens[2];
             file.hash = tokens[0];
 
             string fileHash = tokens[0];
-
             hashToFileInfo[fileHash] = file;
+            tokens.clear();
         }
     }
 
@@ -503,9 +698,14 @@ void handle_input(const char input[], const size_t length)
         for (string tag : tags)
             cout << tag << " ";
     }
-    else if (strcmp(command, "deletetag") == 0)
+    else if (strcmp(command, "deletetags") == 0)
     {
-        deleteTag(filePath, tokenized_input[2]);
+        vector<string> tags;
+        for (int i = 2; i < num_tokens; i++)
+        {
+            tags.push_back(tokenized_input[i]);
+        }
+        deleteTag(filePath, tags);
     }
     else if (strcmp(command, "find") == 0)
     {
@@ -517,7 +717,12 @@ void handle_input(const char input[], const size_t length)
         vector<FileInfo> result = findFiles(tags);
         for (int i = 0; i < result.size(); i++)
         {
-            cout << "s no. - " << i + 1 << ", name - " << result[i].name << ", path - " << result[i].filePath << endl;
+            cout << "s no. - " << i + 1 << ", name - " << result[i].name << ", path - " << result[i].filePath;
+            if (!checkFileExits(result[i].hash))
+            {
+                cout << " ---Moved to other location---";
+            }
+            cout << endl;
         }
 
         cout << "Enter the s no. of file to open it else enter 0: ";
@@ -528,6 +733,26 @@ void handle_input(const char input[], const size_t length)
             string filePath = result[sno - 1].filePath;
             ShellExecuteA(NULL, "open", filePath.c_str(), NULL, NULL, SW_SHOWDEFAULT);
         }
+    }
+    else if (strcmp(command, "removefiles") == 0)
+    {
+        vector<string> paths;
+        for (int i = 1; i < num_tokens; i++)
+        {
+            string filePath(tokenized_input[i]);
+            paths.push_back(filePath);
+        }
+        removeFiles(paths);
+    }
+    else if (strcmp(command, "move") == 0)
+    {
+        string filePath2(tokenized_input[2]);
+        move(filePath, filePath2);
+    }
+    else if (strcmp(command, "copy") == 0)
+    {
+        string filePath2(tokenized_input[2]);
+        copy(filePath, filePath2);
     }
     else if (strcmp(command, "track") == 0)
     {
