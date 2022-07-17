@@ -440,7 +440,6 @@ vector<FileInfo> findFiles(vector<string> tags)
     for (int i = 0; i < len; i++)
     {
         TrieNode *cur = root;
-
         for (int j = 0; j < tags[i].length() && cur; j++)
         {
             cur = (cur->child)[tags[i][j] - 'a'];
@@ -464,7 +463,7 @@ vector<FileInfo> findFiles(vector<string> tags)
     vector<string> fileHashes;
     for (auto it : m)
     {
-        if (it.second == tags.size())
+        if (it.second >= len)
         {
             fileHashes.push_back(it.first);
         }
