@@ -11,8 +11,51 @@ struct FileInfo
     string hash;
 };
 
+struct TrieNode
+{
+    char ele;
+    bool isEndofWord;
+    TrieNode *child[26];
+};
+
+TrieNode *getNewNode(char ch)
+{
+    TrieNode *node = new TrieNode;
+    node->ele = ch;
+    node->isEndofWord = false;
+    for (int i = 0; i < 26; ++i)
+        (node->child)[i] = nullptr;
+
+    return node;
+}
+
+TrieNode *root = getNewNode('/');
 map<string, set<string>> tagToFileHashes;
 map<string, FileInfo> hashToFileInfo;
+
+void insertInTrie(string &tag)
+{
+    int len = tag.length();
+
+    TrieNode *current = root;
+
+    for (int i = 0; i < len; i++)
+    {
+
+        int val = tag[i] - 'a';
+        if ((current->child)[val] != nullptr)
+            current = (current->child)[val];
+        else
+        {
+            TrieNode *new_node = getNewNode(tag[i]);
+            (current->child)[val] = new_node;
+            current = new_node;
+        }
+
+        if (i == len - 1)
+            current->isEndofWord = true;
+    }
+}
 
 char *create_token(const char *input, int begin, int end)
 {
@@ -301,6 +344,25 @@ void addTags(string filePath, vector<string> tags)
     }
 }
 
+void getMoreTags(string tag, vector<string> &moreTags, TrieNode *current)
+{
+    if (current == nullptr)
+    {
+        return;
+    }
+
+    if (current->isEndofWord)
+        moreTags.push_back(tag);
+
+    for (int i = 0; i < 26; i++)
+    {
+        char ch = ('a' + i);
+        getMoreTags(tag + ch, moreTags, (current->child)[i]);
+    }
+
+    return;
+}
+
 void deleteTag(string filePath, string tag)
 {
     string fileHash = getHash(filePath);
@@ -372,6 +434,27 @@ void deleteTag(string filePath, string tag)
 vector<FileInfo> findFiles(vector<string> tags)
 {
     unordered_map<string, int> m;
+    int len = tags.size();
+
+    vector<string> moreTags;
+
+    for (int i = 0; i < len; i++)
+    {
+        TrieNode *cur = root;
+
+        for (int j = 0; j < tags[i].length() && cur; j++)
+        {
+            cur = (cur->child)[tags[i][j] - 'a'];
+        }
+
+        getMoreTags(tags[i], moreTags, cur);
+    }
+
+    for (auto i : moreTags)
+    {
+        tags.push_back(i);
+    }
+
     for (string tag : tags)
     {
         for (string fileHash : tagToFileHashes[tag])
@@ -418,6 +501,11 @@ void setup()
 
             for (int i = 1; i < tokens.size(); ++i)
                 tagToFileHashes[tokens[i]].insert(tokens[0]);
+
+            for (int i = 3; i < tokens.size(); ++i)
+            {
+                insertInTrie(tokens[i]);
+            }
 
             FileInfo file;
             file.name = tokens[1];
