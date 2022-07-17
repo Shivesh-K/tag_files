@@ -84,38 +84,40 @@ int tokenize_input(const char input[], const size_t length, char **tokenized_inp
 
 string getHash(string fileName)
 {
-    // HANDLE fileHandle = CreateFileA(fileName.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
-    // LPFILETIME creation_time;
-    // bool file_found = GetFileTime(fileHandle, creation_time, NULL, NULL);
+    HANDLE fileHandle = CreateFileA(fileName.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+    LPFILETIME creation_time;
+    bool file_found = GetFileTime(fileHandle, creation_time, NULL, NULL);
+    CloseHandle(fileHandle);
 
-    // if (!file_found)
-    // {
-    //     cout << "! File not found\n";
-    //     return "";
-    // }
+    if (!file_found)
+    {
+        cout << "! File not found\n";
+        return "";
+    }
 
-    // size_t h1 = hash<DWORD>{}(creation_time->dwLowDateTime);
-    // size_t h2 = hash<DWORD>{}(creation_time->dwHighDateTime);
+    size_t h1 = hash<DWORD>{}(creation_time->dwLowDateTime);
+    size_t h2 = hash<DWORD>{}(creation_time->dwHighDateTime);
 
-    // size_t final_hash = (h1 ^ (h2 << 1));
-    // string res = "";
-    // for (int i = 0; i < 16; ++i)
-    // {
-    //     int temp = (final_hash & 15);
-    //     char ch;
-    //     if (temp < 10)
-    //         ch = '0' + temp;
-    //     else
-    //         ch = 'a' + temp - 10;
-    //     res += ch;
-    //     final_hash >>= 4;
-    // }
-    // return res;
+    size_t final_hash = (h1 ^ (h2 << 1));
+    string res = "";
+    for (int i = 0; i < 8; ++i)
+    {
+        int temp = (final_hash & 15);
+        char ch;
+        if (temp < 10)
+            ch = '0' + temp;
+        else
+            ch = 'a' + temp - 10;
+        res += ch;
+        final_hash >>= 4;
+    }
+    return res;
 
     return fileName;
 }
 
-bool checkFileExits(string filePath){
+bool checkFileExits(string filePath)
+{
     WIN32_FIND_DATA FindFileData;
     HANDLE hFindFile;
     wstring fileNameCon = wstring(filePath.begin(), filePath.end());
@@ -123,9 +125,9 @@ bool checkFileExits(string filePath){
 
     hFindFile = FindFirstFile(file, &FindFileData);
 
-    if (INVALID_HANDLE_VALUE == hFindFile) 
+    if (INVALID_HANDLE_VALUE == hFindFile)
         return false;
-    else 
+    else
         return true;
 }
 
@@ -166,15 +168,18 @@ vector<string> readTags(string filePath)
 void addTags(string filePath, vector<string> tags)
 {
     int beginIdx = filePath.size();
-    for (int i = beginIdx - 1; i >= 0; i--) {
-        if (filePath[i] == '\\') {
+    for (int i = beginIdx - 1; i >= 0; i--)
+    {
+        if (filePath[i] == '\\')
+        {
             beginIdx = i + 1;
             break;
         }
     }
     string fileName = filePath.substr(beginIdx);
-    if(!checkFileExits(filePath)){
-        cout<<"File does not exist. Please check the file path.";
+    if (!checkFileExits(filePath))
+    {
+        cout << "File does not exist. Please check the file path.";
         return;
     }
 
@@ -182,18 +187,18 @@ void addTags(string filePath, vector<string> tags)
 
     fstream fin1;
     fin1.open("db.csv", ios::in);
-    
+
     string line, word, hash;
     vector<string> row;
     bool flag = 0;
 
-
     // Check if file already exists
-    while(!fin1.eof())
+    while (!fin1.eof())
     {
         row.clear();
         getline(fin1, line);
-        if(line == "") break;
+        if (line == "")
+            break;
         stringstream s(line);
 
         while (getline(s, word, ','))
@@ -213,8 +218,8 @@ void addTags(string filePath, vector<string> tags)
     }
     fin1.close();
 
-    
-    if(!flag){        
+    if (!flag)
+    {
         FileInfo file1;
         file1.name = fileName;
         file1.filePath = filePath;
@@ -235,7 +240,8 @@ void addTags(string filePath, vector<string> tags)
         fout << "\n";
         fout.close();
     }
-    else {
+    else
+    {
         fstream fin, fout;
         fin.open("db.csv", ios::in);
         fout.open("dbnew.csv", ios::out);
@@ -256,7 +262,8 @@ void addTags(string filePath, vector<string> tags)
 
             if (hash == fileHash)
             {
-                for (string tag : tags){
+                for (string tag : tags)
+                {
                     row.push_back(tag);
                     tagToFileHashes[tag].insert(fileHash);
                 }
@@ -362,29 +369,33 @@ void deleteTag(string filePath, string tag)
     rename("dbnew.csv", "db.csv");
 }
 
-vector<FileInfo> findFiles(vector<string> tags) 
+vector<FileInfo> findFiles(vector<string> tags)
 {
     unordered_map<string, int> m;
-    for (string tag : tags) {
-        for (string fileHash : tagToFileHashes[tag]) {
+    for (string tag : tags)
+    {
+        for (string fileHash : tagToFileHashes[tag])
+        {
             m[fileHash]++;
         }
     }
     vector<string> fileHashes;
-    for (auto it : m) {
-        if (it.second == tags.size()) {
+    for (auto it : m)
+    {
+        if (it.second == tags.size())
+        {
             fileHashes.push_back(it.first);
         }
     }
 
     vector<FileInfo> result;
 
-    for (string fileHash : fileHashes) {
+    for (string fileHash : fileHashes)
+    {
         result.push_back(hashToFileInfo[fileHash]);
     }
     return result;
 }
-
 
 void setup()
 {
@@ -399,7 +410,8 @@ void setup()
     while (!fin.eof())
     {
         getline(fin, line);
-        if (line != "") {
+        if (line != "")
+        {
             stringstream linestream(line);
             while (getline(linestream, token, ','))
                 tokens.push_back(token);
@@ -471,14 +483,17 @@ void handle_input(const char input[], const size_t length)
             tags.push_back(tokenized_input[i]);
         }
         vector<FileInfo> result = findFiles(tags);
-        for (int i = 0; i < result.size(); i++) {
-            cout << "s no. - " << i+1 <<  ", name - " << result[i].name << ", path - " << result[i].filePath << endl;
+        for (int i = 0; i < result.size(); i++)
+        {
+            cout << "s no. - " << i + 1 << ", name - " << result[i].name << ", path - " << result[i].filePath << endl;
         }
 
         cout << "Enter the s no. of file to open it else enter 0: ";
-        int sno; cin>>sno;
-        if(sno != 0){
-            string filePath = result[sno-1].filePath;
+        int sno;
+        cin >> sno;
+        if (sno != 0)
+        {
+            string filePath = result[sno - 1].filePath;
             ShellExecuteA(NULL, "open", filePath.c_str(), NULL, NULL, SW_SHOWDEFAULT);
         }
     }
