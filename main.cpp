@@ -161,12 +161,12 @@ string getHash(string fileName)
 
 bool checkFileExits(string filePath)
 {
-    WIN32_FIND_DATA FindFileData;
-    HANDLE hFindFile;
+    LPWIN32_FIND_DATAA FindFileData;
+    HANDLE hFindFile = INVALID_HANDLE_VALUE;
     wstring fileNameCon = wstring(filePath.begin(), filePath.end());
     LPCWSTR file = fileNameCon.c_str();
 
-    hFindFile = FindFirstFile(file, &FindFileData);
+    hFindFile = FindFirstFileA(filePath.c_str(), FindFileData);
 
     if (INVALID_HANDLE_VALUE == hFindFile)
         return false;
@@ -225,6 +225,9 @@ void addTags(string filePath, vector<string> &tags)
         cout << "! File does not exist. Please check the file path\n";
         return;
     }
+
+    for (string &tag : tags)
+        insertInTrie(tag);
 
     string fileHash = getHash(filePath);
     if (fileHash == "")
@@ -396,25 +399,33 @@ void deleteTag(string filePath, vector<string> tags)
 
             if (!fin.eof())
             {
-                for (int i = 0; i < row_size - 1; i++)
+                for (int i = 0; i < row_size; i++)
                 {
+                    if (i <= 2)
+                    {
+                        fout << row[i] << ",";
+                        continue;
+                    }
                     auto it = find(tags.begin(), tags.end(), row[i]);
-                    if (i <= 2 || it == tags.end())
+                    if (it == tags.end())
                         fout << row[i] << ',';
                 }
-                auto it = find(tags.begin(), tags.end(), row[row_size]);
-                fout << row[row_size - 1] << "\n";
+                // auto it = find(tags.begin(), tags.end(), row[row_size - 1]);
+                // if (it != tags.end())
+                //     fout << row[row_size - 1];
+                fout << "\n";
             }
         }
         else
         {
             if (!fin.eof())
             {
-                for (int i = 0; i < row_size - 1; i++)
+                for (int i = 0; i < row_size; i++)
                 {
                     fout << row[i] << ',';
                 }
-                fout << row[row_size - 1] << "\n";
+                // fout << row[row_size - 1] << "\n";
+                fout << "\n";
             }
         }
         if (fin.eof())
@@ -718,7 +729,7 @@ void handle_input(const char input[], const size_t length)
         for (int i = 0; i < result.size(); i++)
         {
             cout << "s no. - " << i + 1 << ", name - " << result[i].name << ", path - " << result[i].filePath;
-            if (!checkFileExits(result[i].hash))
+            if (!checkFileExits(result[i].filePath))
             {
                 cout << " ---Moved to other location---";
             }
