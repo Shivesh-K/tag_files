@@ -1,6 +1,7 @@
 # Prerequisites
 *.d
 .vscode
+db.csv
 
 # Compiled Object files
 *.slo

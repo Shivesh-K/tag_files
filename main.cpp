@@ -161,17 +161,22 @@ string getHash(string fileName)
 
 bool checkFileExits(string filePath)
 {
-    LPWIN32_FIND_DATAA FindFileData;
-    HANDLE hFindFile = INVALID_HANDLE_VALUE;
-    wstring fileNameCon = wstring(filePath.begin(), filePath.end());
-    LPCWSTR file = fileNameCon.c_str();
+    HANDLE fileHandle = CreateFileA(filePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+    bool file_found = GetFileTime(fileHandle, NULL, NULL, NULL);
+    CloseHandle(fileHandle);
 
-    hFindFile = FindFirstFileA(filePath.c_str(), FindFileData);
+    return file_found;
+    // LPWIN32_FIND_DATAA FindFileData;
+    // HANDLE hFindFile = INVALID_HANDLE_VALUE;
+    // wstring fileNameCon = wstring(filePath.begin(), filePath.end());
+    // LPCWSTR file = fileNameCon.c_str();
 
-    if (INVALID_HANDLE_VALUE == hFindFile)
-        return false;
-    else
-        return true;
+    // hFindFile = FindFirstFileA(filePath.c_str(), FindFileData);
+
+    // if (INVALID_HANDLE_VALUE == hFindFile)
+    //     return false;
+    // else
+    //     return true;
 }
 
 vector<string> readTags(string filePath)
