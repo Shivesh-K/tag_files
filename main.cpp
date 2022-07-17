@@ -138,8 +138,8 @@ string getHash(string fileName)
         return "";
     }
 
-    size_t h1 = hash<DWORD> {}(creation_time->dwLowDateTime);
-    size_t h2 = hash<DWORD> {}(creation_time->dwHighDateTime);
+    size_t h1 = hash<DWORD>{}(creation_time->dwLowDateTime);
+    size_t h2 = hash<DWORD>{}(creation_time->dwHighDateTime);
 
     size_t final_hash = (h1 ^ (h2 << 1));
     string res = "";
@@ -161,12 +161,12 @@ string getHash(string fileName)
 
 bool checkFileExits(string filePath)
 {
-    WIN32_FIND_DATA FindFileData;
-    HANDLE hFindFile;
+    LPWIN32_FIND_DATAA FindFileData;
+    HANDLE hFindFile = INVALID_HANDLE_VALUE;
     wstring fileNameCon = wstring(filePath.begin(), filePath.end());
     LPCWSTR file = fileNameCon.c_str();
 
-    hFindFile = FindFirstFile(file, &FindFileData);
+    hFindFile = FindFirstFileA(filePath.c_str(), FindFileData);
 
     if (INVALID_HANDLE_VALUE == hFindFile)
         return false;
@@ -225,6 +225,9 @@ void addTags(string filePath, vector<string> &tags)
         cout << "! File does not exist. Please check the file path\n";
         return;
     }
+
+    for (string &tag : tags)
+        insertInTrie(tag);
 
     string fileHash = getHash(filePath);
     if (fileHash == "")
@@ -344,7 +347,6 @@ void addTags(string filePath, vector<string> &tags)
     }
 }
 
-
 void getMoreTags(string tag, vector<string> &moreTags, TrieNode *current)
 {
     if (current == nullptr)
@@ -397,25 +399,33 @@ void deleteTag(string filePath, vector<string> tags)
 
             if (!fin.eof())
             {
-                for (int i = 0; i < row_size - 1; i++)
+                for (int i = 0; i < row_size; i++)
                 {
+                    if (i <= 2)
+                    {
+                        fout << row[i] << ",";
+                        continue;
+                    }
                     auto it = find(tags.begin(), tags.end(), row[i]);
-                    if (i <= 2 || it == tags.end())
+                    if (it == tags.end())
                         fout << row[i] << ',';
                 }
-                auto it = find(tags.begin(), tags.end(), row[row_size]);
-                fout << row[row_size - 1] << "\n";
+                // auto it = find(tags.begin(), tags.end(), row[row_size - 1]);
+                // if (it != tags.end())
+                //     fout << row[row_size - 1];
+                fout << "\n";
             }
         }
         else
         {
             if (!fin.eof())
             {
-                for (int i = 0; i < row_size - 1; i++)
+                for (int i = 0; i < row_size; i++)
                 {
                     fout << row[i] << ',';
                 }
-                fout << row[row_size - 1] << "\n";
+                // fout << row[row_size - 1] << "\n";
+                fout << "\n";
             }
         }
         if (fin.eof())
@@ -479,9 +489,11 @@ vector<FileInfo> findFiles(vector<string> tags)
     return result;
 }
 
-void removeFiles(vector<string> paths) {
+void removeFiles(vector<string> paths)
+{
     set<string> fileHashes;
-    for (string path : paths) fileHashes.insert(getHash(path));
+    for (string path : paths)
+        fileHashes.insert(getHash(path));
 
     fstream fin, fout;
 
@@ -548,11 +560,12 @@ void move(string path1, string path2)
     {
         cout << "MoveFile success!" << endl;
         vector<string> row = readTags(path1), tags;
-        for (int i = 3; i < row.size(); i++) {
+        for (int i = 3; i < row.size(); i++)
+        {
             tags.push_back(row[i]);
         }
 
-        vector<string>paths = {path1};
+        vector<string> paths = {path1};
         removeFiles(paths);
         addTags(path2, tags);
     }
@@ -575,7 +588,8 @@ void copy(string path1, string path2)
     else
     {
         vector<string> row = readTags(path1), tags;
-        for (int i = 3; i < row.size(); i++) {
+        for (int i = 3; i < row.size(); i++)
+        {
             tags.push_back(row[i]);
         }
         addTags(path2, tags);
@@ -715,7 +729,8 @@ void handle_input(const char input[], const size_t length)
         for (int i = 0; i < result.size(); i++)
         {
             cout << "s no. - " << i + 1 << ", name - " << result[i].name << ", path - " << result[i].filePath;
-            if (!checkFileExits(result[i].hash)) {
+            if (!checkFileExits(result[i].filePath))
+            {
                 cout << " ---Moved to other location---";
             }
             cout << endl;
@@ -733,7 +748,8 @@ void handle_input(const char input[], const size_t length)
     else if (strcmp(command, "removefiles") == 0)
     {
         vector<string> paths;
-        for (int i = 1; i < num_tokens; i++) {
+        for (int i = 1; i < num_tokens; i++)
+        {
             string filePath(tokenized_input[i]);
             paths.push_back(filePath);
         }
