@@ -91,7 +91,7 @@ string getHash(string fileName)
 
     if (!file_found)
     {
-        cout << "! File not found\n";
+        cout << "! File not found (" << fileName << ")\n";
         return "";
     }
 
@@ -165,12 +165,12 @@ vector<string> readTags(string filePath)
     return {};
 }
 
-void addTags(string filePath, vector<string> tags)
+void addTags(string filePath, vector<string> &tags)
 {
     int beginIdx = filePath.size();
     for (int i = beginIdx - 1; i >= 0; i--)
     {
-        if (filePath[i] == '\\')
+        if (filePath[i] == '\\' || filePath[i] == '/')
         {
             beginIdx = i + 1;
             break;
@@ -179,13 +179,15 @@ void addTags(string filePath, vector<string> tags)
     string fileName = filePath.substr(beginIdx);
     if (!checkFileExits(filePath))
     {
-        cout << "File does not exist. Please check the file path.";
+        cout << "! File does not exist. Please check the file path\n";
         return;
     }
 
     string fileHash = getHash(filePath);
+    if (fileHash == "")
+        return;
 
-    fstream fin1;
+    ifstream fin1;
     fin1.open("db.csv", ios::in);
 
     string line, word, hash;
@@ -201,11 +203,7 @@ void addTags(string filePath, vector<string> tags)
             break;
         stringstream s(line);
 
-        while (getline(s, word, ','))
-        {
-            row.push_back(word);
-        }
-        hash = row[0];
+        getline(s, hash, ',');
         if (hash == fileHash)
         {
             flag = 1;
@@ -227,29 +225,36 @@ void addTags(string filePath, vector<string> tags)
 
         hashToFileInfo[fileHash] = file1;
 
-        fstream fout;
+        ofstream fout;
         fout.open("db.csv", ios::out | ios::app);
-        fout << fileHash << "," << fileName << "," << filePath << ",";
-        for (int i = 0; i < tags.size(); i++)
+        row = {fileHash, fileName, filePath};
+        for (string &tag : tags)
         {
-            fout << tags[i];
-            if (i != tags.size() - 1)
-                fout << ",";
-            tagToFileHashes[tags[i]].insert(fileHash);
+            tagToFileHashes[tag].insert(fileHash);
+            row.push_back(tag);
         }
-        fout << "\n";
+
+        string res;
+        for (int i = 0; i < row.size(); i++)
+        {
+            res += row[i] + ",";
+        }
+        res += "\n";
+        fout << res;
+
         fout.close();
     }
     else
     {
-        fstream fin, fout;
+        ifstream fin;
+        ofstream fout;
         fin.open("db.csv", ios::in);
         fout.open("dbnew.csv", ios::out);
 
         while (!fin.eof())
         {
             row.clear();
-            getline(fin, line);
+            getline(fin, line, '\n');
             stringstream s(line);
 
             while (getline(s, word, ','))
@@ -258,37 +263,32 @@ void addTags(string filePath, vector<string> tags)
             }
 
             hash = row[0];
-            int row_size = row.size();
 
             if (hash == fileHash)
             {
                 for (string tag : tags)
                 {
-                    row.push_back(tag);
-                    tagToFileHashes[tag].insert(fileHash);
-                }
-
-                if (!fin.eof())
-                {
-                    for (int i = 0; i < row_size; i++)
+                    if (tagToFileHashes[tag].count(fileHash) == 0)
                     {
-                        fout << row[i] << ',';
+                        row.push_back(tag);
+                        tagToFileHashes[tag].insert(fileHash);
                     }
-                    fout << row[row_size] << "\n";
                 }
             }
-            else
+
+            int row_size = row.size();
+            string res;
+            for (int i = 0; i < row_size; i++)
             {
-                if (!fin.eof())
-                {
-                    for (int i = 0; i < row_size - 1; i++)
-                    {
-                        fout << row[i] << ',';
-                    }
-
-                    fout << row[row_size - 1] << "\n";
-                }
+                if (row[i] == "")
+                    continue;
+                res += row[i] + ",";
             }
+            res += "\n";
+            if (res == "\n")
+                continue;
+            fout << res;
+
             if (fin.eof())
                 break;
         }
@@ -397,6 +397,38 @@ vector<FileInfo> findFiles(vector<string> tags)
     return result;
 }
 
+vector<string> getFileMetadataTags(const string &filePath)
+{
+    return {};
+}
+
+void trackFolder(const string folderPath, vector<string> tags = {})
+{
+    WIN32_FIND_DATAA findData;
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+    string full_path = folderPath + "\\*";
+    vector<string> dir_list;
+
+    hFind = FindFirstFileA(full_path.c_str(), &findData);
+
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        FindClose(hFind);
+        cout << "! Directory not found (" << full_path << ")\n";
+        return;
+    }
+
+    while (FindNextFileA(hFind, &findData) != 0)
+    {
+        // metadataTags = getFileMetadataTags(findData.)
+        if (strcmp(findData.cFileName, "..") == 0)
+            continue;
+        addTags(folderPath + "\\" + string(findData.cFileName), tags);
+    }
+
+    FindClose(hFind);
+}
+
 void setup()
 {
     tagToFileHashes.clear();
@@ -496,6 +528,26 @@ void handle_input(const char input[], const size_t length)
             string filePath = result[sno - 1].filePath;
             ShellExecuteA(NULL, "open", filePath.c_str(), NULL, NULL, SW_SHOWDEFAULT);
         }
+    }
+    else if (strcmp(command, "track") == 0)
+    {
+        vector<string> folderPaths, tags;
+        int i;
+        for (i = 1; i < num_tokens; ++i)
+        {
+            if (strcmp(tokenized_input[i], "-tags") == 0)
+            {
+                ++i;
+                break;
+            }
+            folderPaths.push_back(string(tokenized_input[i]));
+        }
+
+        while (i < num_tokens)
+            tags.push_back(tokenized_input[i++]);
+
+        for (string &folderPath : folderPaths)
+            trackFolder(folderPath, tags);
     }
     else
     {
