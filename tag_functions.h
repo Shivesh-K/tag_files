@@ -7,6 +7,8 @@ struct FileInfo
     string name;
     string filePath;
     string hash;
+
+    bool operator<(const FileInfo &other) const { return hash < other.hash; }
 };
 
 map<string, set<string>> tagToFileHashes;
@@ -266,7 +268,7 @@ void deleteTags(string filePath, vector<string> tags)
     rename("dbnew.csv", "db.csv");
 }
 
-vector<FileInfo> findFiles(vector<string> tags)
+set<FileInfo> findFiles(vector<string> tags)
 {
     unordered_map<string, int> m;
     int len = tags.size();
@@ -305,12 +307,11 @@ vector<FileInfo> findFiles(vector<string> tags)
         }
     }
 
-    vector<FileInfo> result;
+    set<FileInfo> result;
 
     for (string fileHash : fileHashes)
-    {
-        result.push_back(hashToFileInfo[fileHash]);
-    }
+        result.insert(hashToFileInfo[fileHash]);
+
     return result;
 }
 
@@ -438,17 +439,18 @@ void copy(string path1, string path2)
 void rename(string path1, string newName)
 {
     string path2 = "";
-    bool flag=0;
-    for(int i = path1.size()-1; i>=0; i--){
+    bool flag = 0;
+    for (int i = path1.size() - 1; i >= 0; i--)
+    {
 
         if (path1[i] == '\\' || path1[i] == '/')
-            flag=1;
-        if(flag) path2 += path1[i];
-        
+            flag = 1;
+        if (flag)
+            path2 += path1[i];
     }
     reverse(path2.begin(), path2.end());
     path2 += newName;
-    cout<<path1<<" "<<path2<<endl;
+    cout << path1 << " " << path2 << endl;
     wstring fileNameCon1 = wstring(path1.begin(), path1.end());
     wstring fileNameCon2 = wstring(path2.begin(), path2.end());
     LPCWSTR file1 = fileNameCon1.c_str();

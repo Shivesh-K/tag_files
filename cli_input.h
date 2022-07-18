@@ -28,7 +28,6 @@ int tokenize_input(const char input[], const size_t length, char **tokenized_inp
 
     for (int index = 0; index < length + 1; ++index)
     {
-        cout << input[index];
         if (!in_string && (input[index] == ' ' || input[index] == 0))
         {
             char *new_token = create_token(input, start, index - 1);
@@ -56,9 +55,6 @@ int tokenize_input(const char input[], const size_t length, char **tokenized_inp
                 start = index + 1;
                 in_string = true;
             }
-
-            // start = index + 1;
-            // in_string = !in_string;
         }
     }
 

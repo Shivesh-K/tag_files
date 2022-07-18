@@ -47,6 +47,88 @@ void setup()
     fin.close();
 }
 
+set<FileInfo> resolveQuery(string query, int &index)
+{
+    if (index >= query.size())
+        return {};
+
+    if (query[index] == '(')
+    {
+        ++index;
+        auto res = resolveQuery(query, index);
+
+        if (index >= query.length() || query[index] != ')')
+            return {};
+
+        ++index;
+        return res;
+    }
+    else if (isalnum(query[index]))
+    {
+        string tag;
+        while (index < query.length() && isalnum(query[index]))
+            tag += query[index++];
+
+        set<FileInfo> curr = findFiles({tag}), other;
+        char op;
+
+        if (index >= query.length() || query[index] == ')')
+            return curr;
+        else if (query[index] == '|' || query[index] == '&' || query[index] == '-')
+            op = query[index], other = resolveQuery(query, ++index);
+        else
+            return {};
+
+        set<FileInfo> res;
+
+        if (op == '|')
+        {
+            for (auto &el : curr)
+                res.insert(el);
+            for (auto &el : other)
+                res.insert(el);
+        }
+        else if (op == '&')
+        {
+            for (auto &el : curr)
+                if (other.count(el))
+                    res.insert(el);
+        }
+        else if (op == '-')
+        {
+            for (auto &el : curr)
+                if (other.count(el) == 0)
+                    res.insert(el);
+        }
+        else
+        {
+            return {};
+        }
+    }
+    else
+    {
+        return {};
+    }
+}
+
+vector<FileInfo> findAll(vector<string> queries)
+{
+    set<FileInfo> res;
+    for (string &query : queries)
+    {
+        int idx = 0;
+        set<FileInfo> se = resolveQuery(query, idx);
+        for (auto file : se)
+            res.insert(file);
+    }
+
+    vector<FileInfo> ans;
+    for (auto &el : res)
+        ans.push_back(el);
+
+    return ans;
+}
+
 void handle_input(const char input[], const size_t length)
 {
     if (length == 0)
@@ -143,14 +225,14 @@ void handle_input(const char input[], const size_t length)
     }
     else if (strcmp(command, "find") == 0)
     {
-        vector<string> tags;
+        vector<string> queries;
         for (int i = 1; i < num_tokens; i++)
-            tags.push_back(tokenized_input[i]);
+            queries.push_back(tokenized_input[i]);
 
-        for (string &tag : tags)
+        for (string &tag : queries)
             transform(tag.begin(), tag.end(), tag.begin(), ::tolower);
 
-        vector<FileInfo> result = findFiles(tags);
+        vector<FileInfo> result = findAll(queries);
         for (int i = 0; i < result.size(); i++)
         {
             cout << i + 1 << ". " << result[i].name << " (" << result[i].filePath << ") ";
@@ -201,7 +283,7 @@ void handle_input(const char input[], const size_t length)
         string filePath2(tokenized_input[2]);
         copy(filePath, filePath2);
     }
-    else if(strcmp(command, "rename") == 0)
+    else if (strcmp(command, "rename") == 0)
     {
         string newName(tokenized_input[2]);
         rename(filePath, newName);
