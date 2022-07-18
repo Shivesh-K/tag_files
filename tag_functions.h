@@ -1,4 +1,4 @@
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 #include "utility.h"
 using namespace std;
 
@@ -12,7 +12,8 @@ struct FileInfo
 map<string, set<string>> tagToFileHashes;
 map<string, FileInfo> hashToFileInfo;
 
-string getFileName(string filePath){
+string getFileName(string filePath)
+{
     int beginIdx = filePath.size();
     for (int i = beginIdx - 1; i >= 0; i--)
     {
@@ -158,8 +159,6 @@ void addTags(string filePath, vector<string> &tags)
     }
 }
 
-
-
 vector<string> readTags(string filePath)
 {
     string fileHash = getHash(filePath);
@@ -195,8 +194,7 @@ vector<string> readTags(string filePath)
     return {};
 }
 
-
-void deleteTag(string filePath, vector<string> tags)
+void deleteTags(string filePath, vector<string> tags)
 {
     string fileHash = getHash(filePath);
     fstream fin, fout;
@@ -469,7 +467,6 @@ void trackFolder(const string folderPath, vector<string> tags = {})
 
     FindClose(hFind);
 }
-
 
 void createFile(string filePath, vector<string> tags = {})
 {

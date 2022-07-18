@@ -120,14 +120,26 @@ void handle_input(const char input[], const size_t length)
     }
     else if (strcmp(command, "deletetags") == 0)
     {
-        vector<string> tags;
-        for (int i = 2; i < num_tokens; i++)
-            tags.push_back(tokenized_input[i]);
+        vector<string> filePaths, tags;
+        int i;
+        for (i = 1; i < num_tokens; ++i)
+        {
+            if (strcmp(tokenized_input[i], "-tags") == 0)
+            {
+                ++i;
+                break;
+            }
+            filePaths.push_back(string(tokenized_input[i]));
+        }
+
+        while (i < num_tokens)
+            tags.push_back(tokenized_input[i++]);
 
         for (string &tag : tags)
             transform(tag.begin(), tag.end(), tag.begin(), ::tolower);
 
-        deleteTag(filePath, tags);
+        for (string &filePath : filePaths)
+            deleteTags(filePath, tags);
     }
     else if (strcmp(command, "find") == 0)
     {
@@ -200,7 +212,7 @@ void handle_input(const char input[], const size_t length)
                 ++i;
                 break;
             }
-            folderPaths.push_back(string(tokenized_input[i]));
+            folderPaths.push_back(tokenized_input[i]);
         }
 
         while (i < num_tokens)
@@ -225,13 +237,13 @@ void handle_input(const char input[], const size_t length)
 int main()
 {
     setup();
-    char input[128];
+    char input[1024];
     cout << "\nWelcome to tag files\n";
 
     while (true)
     {
         cout << "\n> ";
-        cin.getline(input, sizeof(char) * 128);
+        cin.getline(input, sizeof(char) * 1024);
         handle_input(input, strlen(input));
     }
 

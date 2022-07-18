@@ -1,9 +1,9 @@
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 using namespace std;
 
 char *create_token(const char *input, int begin, int end)
 {
-    if (begin > end)
+    if (begin > end || (begin == end && *input == ' '))
         return NULL;
 
     size_t length = end - begin + 1;
@@ -28,36 +28,37 @@ int tokenize_input(const char input[], const size_t length, char **tokenized_inp
 
     for (int index = 0; index < length + 1; ++index)
     {
-        if (!in_string && (input[index] == ' ' || input[index] == '\0'))
+        cout << input[index];
+        if (!in_string && (input[index] == ' ' || input[index] == 0))
         {
             char *new_token = create_token(input, start, index - 1);
-            if (new_token == NULL)
-            {
-                start = index + 1;
-                continue;
-            }
-
-            result_buffer[num_tokens] = new_token;
             start = index + 1;
-            ++num_tokens;
+            if (new_token == NULL)
+                continue;
+
+            result_buffer[num_tokens++] = new_token;
         }
         else if (input[index] == '"')
         {
             if (in_string)
             {
                 char *new_token = create_token(input, start, index - 1);
+                in_string = false;
+                start = index + 1;
                 if (new_token == NULL)
-                {
-                    start = index + 1;
                     continue;
-                }
 
                 result_buffer[num_tokens] = new_token;
                 ++num_tokens;
             }
+            else
+            {
+                start = index + 1;
+                in_string = true;
+            }
 
-            start = index + 1;
-            in_string = !in_string;
+            // start = index + 1;
+            // in_string = !in_string;
         }
     }
 
