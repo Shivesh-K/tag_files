@@ -201,6 +201,11 @@ void handle_input(const char input[], const size_t length)
         string filePath2(tokenized_input[2]);
         copy(filePath, filePath2);
     }
+    else if(strcmp(command, "rename") == 0)
+    {
+        string newName(tokenized_input[2]);
+        rename(filePath, newName);
+    }
     else if (strcmp(command, "track") == 0)
     {
         vector<string> folderPaths, tags;

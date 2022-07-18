@@ -435,6 +435,47 @@ void copy(string path1, string path2)
     }
 }
 
+void rename(string path1, string newName)
+{
+    string path2 = "";
+    bool flag=0;
+    for(int i = path1.size()-1; i>=0; i--){
+
+        if (path1[i] == '\\' || path1[i] == '/')
+            flag=1;
+        if(flag) path2 += path1[i];
+        
+    }
+    reverse(path2.begin(), path2.end());
+    path2 += newName;
+    cout<<path1<<" "<<path2<<endl;
+    wstring fileNameCon1 = wstring(path1.begin(), path1.end());
+    wstring fileNameCon2 = wstring(path2.begin(), path2.end());
+    LPCWSTR file1 = fileNameCon1.c_str();
+    LPCWSTR file2 = fileNameCon2.c_str();
+
+    BOOL bFile;
+    bFile = MoveFile(file1, file2);
+
+    if (bFile == FALSE)
+        cout << "! File move failed\n";
+    else
+    {
+        vector<string> tags;
+        addTags(path2, tags);
+
+        string fileName = getFileName(path2);
+        string fileHash = getHash(path2);
+
+        FileInfo file1;
+        file1.name = fileName;
+        file1.filePath = path2;
+        file1.hash = fileHash;
+
+        hashToFileInfo[fileHash] = file1;
+    }
+}
+
 vector<string> getFileMetadataTags(const string &filePath)
 {
     return {};
