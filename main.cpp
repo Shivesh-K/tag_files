@@ -90,14 +90,26 @@ void handle_input(const char input[], const size_t length)
     }
     else if (strcmp(command, "addtags") == 0)
     {
-        vector<string> tags;
-        for (int i = 2; i < num_tokens; i++)
-            tags.push_back(tokenized_input[i]);
+        vector<string> filePaths, tags;
+        int i;
+        for (i = 1; i < num_tokens; ++i)
+        {
+            if (strcmp(tokenized_input[i], "-tags") == 0)
+            {
+                ++i;
+                break;
+            }
+            filePaths.push_back(string(tokenized_input[i]));
+        }
+
+        while (i < num_tokens)
+            tags.push_back(tokenized_input[i++]);
 
         for (string &tag : tags)
             transform(tag.begin(), tag.end(), tag.begin(), ::tolower);
 
-        addTags(filePath, tags);
+        for (string &filePath : filePaths)
+            addTags(filePath, tags);
     }
     else if (strcmp(command, "readtags") == 0)
     {
@@ -136,12 +148,16 @@ void handle_input(const char input[], const size_t length)
         }
 
         cout << "Enter the S.No. of file to open it. Enter 0 to exit: ";
-        string sno; cin >> sno;
-        if(sno.size() > 8){
+        string sno;
+        cin >> sno;
+        if (sno.size() > 8)
+        {
             sno = "0";
         }
-        for(int i = 0; i < sno.size(); i++){
-            if(!('0' <= sno[i] && sno[i] <= '9')){
+        for (int i = 0; i < sno.size(); i++)
+        {
+            if (!('0' <= sno[i] && sno[i] <= '9'))
+            {
                 sno = "0";
                 break;
             }
