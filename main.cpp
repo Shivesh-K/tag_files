@@ -15,7 +15,7 @@ struct TrieNode
 {
     char ele;
     bool isEndofWord;
-    TrieNode *child[26];
+    unordered_map<char, TrieNode *> child;
 };
 
 TrieNode *getNewNode(char ch)
@@ -23,8 +23,8 @@ TrieNode *getNewNode(char ch)
     TrieNode *node = new TrieNode;
     node->ele = ch;
     node->isEndofWord = false;
-    for (int i = 0; i < 26; ++i)
-        (node->child)[i] = nullptr;
+    // for (int i = 0; i < 26; ++i)
+    //     (node->child)[i] = nullptr;
 
     return node;
 }
@@ -42,8 +42,8 @@ void insertInTrie(string &tag)
     for (int i = 0; i < len; i++)
     {
 
-        int val = tag[i] - 'a';
-        if ((current->child)[val] != nullptr)
+        char val = tag[i];
+        if ((current->child)[val])
             current = (current->child)[val];
         else
         {
@@ -125,21 +125,20 @@ int tokenize_input(const char input[], const size_t length, char **tokenized_inp
     return 0;
 }
 
-string getHash(string fileName)
+string getHash(string filePath)
 {
-    HANDLE fileHandle = CreateFileA(fileName.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
-    LPFILETIME creation_time;
-    bool file_found = GetFileTime(fileHandle, creation_time, NULL, NULL);
+    wstring fileName = wstring(filePath.begin(), filePath.end());
+
+    HANDLE fileHandle = CreateFile(fileName.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+    FILETIME creation_time;
+    bool file_found = GetFileTime(fileHandle, &creation_time, NULL, NULL);
     CloseHandle(fileHandle);
 
     if (!file_found)
-    {
-        cout << "! File not found\n";
         return "";
-    }
 
-    size_t h1 = hash<DWORD>{}(creation_time->dwLowDateTime);
-    size_t h2 = hash<DWORD>{}(creation_time->dwHighDateTime);
+    size_t h1 = hash<DWORD>{}(creation_time.dwLowDateTime);
+    size_t h2 = hash<DWORD>{}(creation_time.dwHighDateTime);
 
     size_t final_hash = (h1 ^ (h2 << 1));
     string res = "";
@@ -154,29 +153,18 @@ string getHash(string fileName)
         res += ch;
         final_hash >>= 4;
     }
-    return res;
 
-    return fileName;
+    return res;
 }
 
 bool checkFileExits(string filePath)
 {
-    HANDLE fileHandle = CreateFileA(filePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+    wstring newFilePath = wstring(filePath.begin(), filePath.end());
+    HANDLE fileHandle = CreateFile(newFilePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
     bool file_found = GetFileTime(fileHandle, NULL, NULL, NULL);
     CloseHandle(fileHandle);
 
     return file_found;
-    // LPWIN32_FIND_DATAA FindFileData;
-    // HANDLE hFindFile = INVALID_HANDLE_VALUE;
-    // wstring fileNameCon = wstring(filePath.begin(), filePath.end());
-    // LPCWSTR file = fileNameCon.c_str();
-
-    // hFindFile = FindFirstFileA(filePath.c_str(), FindFileData);
-
-    // if (INVALID_HANDLE_VALUE == hFindFile)
-    //     return false;
-    // else
-    //     return true;
 }
 
 vector<string> readTags(string filePath)
@@ -207,8 +195,9 @@ vector<string> readTags(string filePath)
             return row;
         }
     }
+
     if (flag == 0)
-        cout << "Record not found\n";
+        cout << "! File not found\n";
 
     return {};
 }
@@ -317,6 +306,9 @@ void addTags(string filePath, vector<string> &tags)
 
             if (hash == fileHash)
             {
+                row[1] = fileName;
+                row[2] = filePath;
+
                 for (string tag : tags)
                 {
                     if (tagToFileHashes[tag].count(fileHash) == 0)
@@ -355,20 +347,21 @@ void addTags(string filePath, vector<string> &tags)
 void getMoreTags(string tag, vector<string> &moreTags, TrieNode *current)
 {
     if (current == nullptr)
-    {
         return;
-    }
 
     if (current->isEndofWord)
         moreTags.push_back(tag);
 
-    for (int i = 0; i < 26; i++)
-    {
-        char ch = ('a' + i);
-        getMoreTags(tag + ch, moreTags, (current->child)[i]);
-    }
+    for (auto el : current->child)
+        getMoreTags(tag + el.first, moreTags, el.second);
 
-    return;
+    // for (int i = 0; i < 26; i++)
+    // {
+    //     char ch = ('a' + i);
+    //     getMoreTags(tag + ch, moreTags, (current->child)[i]);
+    // }
+
+    // return;
 }
 
 void deleteTag(string filePath, vector<string> tags)
@@ -415,9 +408,6 @@ void deleteTag(string filePath, vector<string> tags)
                     if (it == tags.end())
                         fout << row[i] << ',';
                 }
-                // auto it = find(tags.begin(), tags.end(), row[row_size - 1]);
-                // if (it != tags.end())
-                //     fout << row[row_size - 1];
                 fout << "\n";
             }
         }
@@ -458,7 +448,7 @@ vector<FileInfo> findFiles(vector<string> tags)
         TrieNode *cur = root;
         for (int j = 0; j < tags[i].length() && cur; j++)
         {
-            cur = (cur->child)[tags[i][j] - 'a'];
+            cur = (cur->child)[tags[i][j]];
         }
 
         getMoreTags(tags[i], moreTags, cur);
@@ -558,20 +548,10 @@ void move(string path1, string path2)
     bFile = MoveFile(file1, file2);
 
     if (bFile == FALSE)
-    {
-        cout << "MoveFile failed - " << GetLastError() << endl;
-    }
+        cout << "! File move failed\n";
     else
     {
-        cout << "MoveFile success!" << endl;
-        vector<string> row = readTags(path1), tags;
-        for (int i = 3; i < row.size(); i++)
-        {
-            tags.push_back(row[i]);
-        }
-
-        vector<string> paths = {path1};
-        removeFiles(paths);
+        vector<string> tags;
         addTags(path2, tags);
     }
 }
@@ -588,18 +568,30 @@ void copy(string path1, string path2)
 
     if (bFile == FALSE)
     {
-        cout << "CopyFile failed - " << GetLastError() << endl;
+        cout << "! File copy failed\n";
     }
     else
     {
+        SYSTEMTIME currentTime;
+        GetSystemTime(&currentTime);
+
+        FILETIME fileTime;
+        SystemTimeToFileTime(&currentTime, &fileTime);
+
+        HANDLE filename = CreateFile(file2,
+                                     FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                     NULL, OPEN_EXISTING,
+                                     FILE_ATTRIBUTE_NORMAL, NULL);
+
+        SetFileTime(filename, &fileTime, &fileTime, &fileTime);
+        CloseHandle(filename);
+
         vector<string> row = readTags(path1), tags;
         for (int i = 3; i < row.size(); i++)
-        {
             tags.push_back(row[i]);
-        }
         addTags(path2, tags);
 
-        cout << "CopyFile success!" << endl;
+        cout << "^ CopyFile success\n";
     }
 }
 
@@ -626,10 +618,11 @@ void trackFolder(const string folderPath, vector<string> tags = {})
 
     while (FindNextFileA(hFind, &findData) != 0)
     {
-        // metadataTags = getFileMetadataTags(findData.)
-        if (strcmp(findData.cFileName, "..") == 0)
+        string filePath = folderPath + "\\" + findData.cFileName;
+        auto attributes = GetFileAttributesA(filePath.c_str());
+        if (attributes & FILE_ATTRIBUTE_DIRECTORY)
             continue;
-        addTags(folderPath + "\\" + string(findData.cFileName), tags);
+        addTags(filePath, tags);
     }
 
     FindClose(hFind);
@@ -676,6 +669,22 @@ void setup()
     fin.close();
 }
 
+void createFile(string filePath, vector<string> tags = {})
+{
+    wstring fileName = wstring(filePath.begin(), filePath.end());
+
+    HANDLE fileHandle = CreateFileW(fileName.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (fileHandle == INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(fileHandle);
+        cout << "! There was an error creating the file\n";
+        return;
+    }
+    CloseHandle(fileHandle);
+
+    addTags(filePath, tags);
+}
+
 void handle_input(const char input[], const size_t length)
 {
     if (length == 0)
@@ -694,54 +703,82 @@ void handle_input(const char input[], const size_t length)
     char *command = tokenized_input[0];
     string filePath(tokenized_input[1]);
 
-    if (strcmp(command, "delfile") == 0)
+    if (strcmp(command, "create") == 0)
     {
-        for (int index = 1; index < num_tokens; ++index)
-            std::cout << tokenized_input[index] << "\n";
+        vector<string> filePaths, tags;
+        int i;
+        for (i = 1; i < num_tokens; ++i)
+        {
+            if (strcmp(tokenized_input[i], "-tags") == 0)
+            {
+                ++i;
+                break;
+            }
+            filePaths.push_back(string(tokenized_input[i]));
+        }
+
+        while (i < num_tokens)
+            tags.push_back(tokenized_input[i++]);
+
+        for (string &tag : tags)
+            transform(tag.begin(), tag.end(), tag.begin(), ::tolower);
+
+        for (string &filePath : filePaths)
+            createFile(filePath, tags);
+    }
+    else if (strcmp(command, "delfile") == 0)
+    {
+        // for (int index = 1; index < num_tokens; ++index)
+        //     std::cout << tokenized_input[index] << "\n";
     }
     else if (strcmp(command, "addtags") == 0)
     {
         vector<string> tags;
         for (int i = 2; i < num_tokens; i++)
-        {
             tags.push_back(tokenized_input[i]);
-        }
+
+        for (string &tag : tags)
+            transform(tag.begin(), tag.end(), tag.begin(), ::tolower);
+
         addTags(filePath, tags);
     }
     else if (strcmp(command, "readtags") == 0)
     {
         vector<string> tags = readTags(filePath);
-        for (string tag : tags)
-            cout << tag << " ";
+        for (int i = 3; i < tags.size(); ++i)
+            cout << tags[i] << " ";
+        cout << "\n";
     }
     else if (strcmp(command, "deletetags") == 0)
     {
         vector<string> tags;
         for (int i = 2; i < num_tokens; i++)
-        {
             tags.push_back(tokenized_input[i]);
-        }
+
+        for (string &tag : tags)
+            transform(tag.begin(), tag.end(), tag.begin(), ::tolower);
+
         deleteTag(filePath, tags);
     }
     else if (strcmp(command, "find") == 0)
     {
         vector<string> tags;
         for (int i = 1; i < num_tokens; i++)
-        {
             tags.push_back(tokenized_input[i]);
-        }
+
+        for (string &tag : tags)
+            transform(tag.begin(), tag.end(), tag.begin(), ::tolower);
+
         vector<FileInfo> result = findFiles(tags);
         for (int i = 0; i < result.size(); i++)
         {
-            cout << "s no. - " << i + 1 << ", name - " << result[i].name << ", path - " << result[i].filePath;
+            cout << i + 1 << ". " << result[i].name << " (" << result[i].filePath << ") ";
             if (!checkFileExits(result[i].filePath))
-            {
-                cout << " ---Moved to other location---";
-            }
-            cout << endl;
+                cout << " ~Moved to other location~";
+            cout << "\n";
         }
 
-        cout << "Enter the s no. of file to open it else enter 0: ";
+        cout << "Enter the S.No. of file to open it. Enter 0 to exit: ";
         int sno;
         cin >> sno;
         if (sno != 0)
@@ -787,8 +824,15 @@ void handle_input(const char input[], const size_t length)
         while (i < num_tokens)
             tags.push_back(tokenized_input[i++]);
 
+        for (string &tag : tags)
+            transform(tag.begin(), tag.end(), tag.begin(), ::tolower);
+
         for (string &folderPath : folderPaths)
             trackFolder(folderPath, tags);
+    }
+    else if (strcmp(command, "exit") == 0)
+    {
+        exit(0);
     }
     else
     {

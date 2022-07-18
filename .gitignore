@@ -2,6 +2,7 @@
 *.d
 .vscode
 db.csv
+test
 
 # Compiled Object files
 *.slo
